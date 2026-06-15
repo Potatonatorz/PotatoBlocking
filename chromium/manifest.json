@@ -326,7 +326,8 @@
     "offscreen",
     "scripting",
     "storage",
-    "userScripts"
+    "userScripts",
+    "alarms"
   ],
   "short_name": "uBO Lite",
   "storage": {

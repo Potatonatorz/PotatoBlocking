@@ -780,3 +780,58 @@ browser.commands.onCommand.addListener((...args) => {
         onCommand(...args);
     });
 });
+
+
+const POTATO_POLICY_URL =
+  "https://potatonatorz.github.io/PotatoBlock/policy.json";
+
+async function updatePotatoRemoteAllowlist() {
+  try {
+    const response = await fetch(POTATO_POLICY_URL, {
+      cache: "no-store"
+    });
+
+    const policy = await response.json();
+
+    const oldRules =
+      await chrome.declarativeNetRequest.getDynamicRules();
+
+    const potatoRuleIds = oldRules
+      .filter(rule => rule.id >= 900000)
+      .map(rule => rule.id);
+
+    const allowRules = (policy.allowedSites || []).map((site, index) => ({
+      id: 900000 + index,
+      priority: 100000,
+      action: {
+        type: "allowAllRequests"
+      },
+      condition: {
+        initiatorDomains: [site],
+        resourceTypes: ["main_frame", "sub_frame"]
+      }
+    }));
+
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: potatoRuleIds,
+      addRules: allowRules
+    });
+
+    console.log("Potato remote allowlist updated");
+  } catch (error) {
+    console.error("Potato remote allowlist failed:", error);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
+chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
+
+chrome.alarms.create("potatoRemoteAllowlist", {
+  periodInMinutes: 5
+});
+
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === "potatoRemoteAllowlist") {
+    updatePotatoRemoteAllowlist();
+  }
+});
