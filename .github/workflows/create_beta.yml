@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -35,41 +36,33 @@ jobs:
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-          python3 - <<'PY'
-from pathlib import Path
-
-path = Path("chromium-temp/js/background.js")
-
-potato_code = r'''
-
-const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
-
-async function updatePotatoRemoteAllowlist() {
-  try {
-    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });
-    const policy = await response.json();
-    const noFiltering = {};
-
-    for (const site of policy.allowedSites || []) {
-      if (typeof site === "string" && site.trim() !== "") {
-        noFiltering[site.trim()] = true;
-      }
-    }
-
-    await chrome.storage.local.set({ "admin.noFiltering": noFiltering });
-    console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
-  } catch (error) {
-    console.error("[PotatoBlocking] Remote allowlist failed:", error);
-  }
-}
-
-updatePotatoRemoteAllowlist();
-chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
-chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
-'''
-
-path.write_text(path.read_text() + potato_code)
-PY
+          {
+            echo ''
+            echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
+            echo ''
+            echo 'async function updatePotatoRemoteAllowlist() {'
+            echo '  try {'
+            echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
+            echo '    const policy = await response.json();'
+            echo '    const noFiltering = {};'
+            echo ''
+            echo '    for (const site of policy.allowedSites || []) {'
+            echo '      if (typeof site === "string" && site.trim() !== "") {'
+            echo '        noFiltering[site.trim()] = true;'
+            echo '      }'
+            echo '    }'
+            echo ''
+            echo '    await chrome.storage.local.set({ "admin.noFiltering": noFiltering });'
+            echo '    console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);'
+            echo '  } catch (error) {'
+            echo '    console.error("[PotatoBlocking] Remote allowlist failed:", error);'
+            echo '  }'
+            echo '}'
+            echo ''
+            echo 'updatePotatoRemoteAllowlist();'
+            echo 'chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);'
+            echo 'chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);'
+          } >> chromium-temp/js/background.js
 
           grep -R "POTATO_POLICY_URL" chromium-temp/js/background.js
 
