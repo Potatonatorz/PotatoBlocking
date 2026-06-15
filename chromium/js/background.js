@@ -782,56 +782,60 @@ browser.commands.onCommand.addListener((...args) => {
 });
 
 
-const POTATO_POLICY_URL =
-  "https://potatonatorz.github.io/PotatoBlock/policy.json";
+
+
+
+
+const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
 async function updatePotatoRemoteAllowlist() {
-  try {
-    const response = await fetch(POTATO_POLICY_URL, {
-      cache: "no-store"
-    });
+try {
+const response = await fetch(POTATO_POLICY_URL, {
+cache: "no-store"
+});
 
-    const policy = await response.json();
+```
+if (!response.ok) {
+  throw new Error(`Potato policy fetch failed: ${response.status}`);
+}
 
-    const oldRules =
-      await chrome.declarativeNetRequest.getDynamicRules();
+const policy = await response.json();
 
-    const potatoRuleIds = oldRules
-      .filter(rule => rule.id >= 900000)
-      .map(rule => rule.id);
+const allowedSites = Array.isArray(policy.allowedSites)
+  ? policy.allowedSites
+  : [];
 
-    const allowRules = (policy.allowedSites || []).map((site, index) => ({
-      id: 900000 + index,
-      priority: 100000,
-      action: {
-        type: "allowAllRequests"
-      },
-      condition: {
-        initiatorDomains: [site],
-        resourceTypes: ["main_frame", "sub_frame"]
-      }
-    }));
+const noFiltering = {};
 
-    await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: potatoRuleIds,
-      addRules: allowRules
-    });
-
-    console.log("Potato remote allowlist updated");
-  } catch (error) {
-    console.error("Potato remote allowlist failed:", error);
+for (const site of allowedSites) {
+  if (typeof site === "string" && site.trim() !== "") {
+    noFiltering[site.trim()] = true;
   }
 }
+
+await chrome.storage.local.set({
+  "admin.noFiltering": noFiltering
+});
+
+console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
+```
+
+} catch (error) {
+console.error("[PotatoBlocking] Remote allowlist failed:", error);
+}
+}
+
+updatePotatoRemoteAllowlist();
 
 chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
 chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
 
 chrome.alarms.create("potatoRemoteAllowlist", {
-  periodInMinutes: 5
+periodInMinutes: 5
 });
 
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === "potatoRemoteAllowlist") {
-    updatePotatoRemoteAllowlist();
-  }
+if (alarm.name === "potatoRemoteAllowlist") {
+updatePotatoRemoteAllowlist();
+}
 });
