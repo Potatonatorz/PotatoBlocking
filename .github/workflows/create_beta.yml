@@ -1,51 +1,98 @@
 name: uBO Lite beta
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 permissions:
-  contents: read
+contents: read
 
 jobs:
-  build:
-    name: Build packages
-    runs-on: ubuntu-latest
+build:
+name: Build packages
+runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
+```
+permissions:
+  contents: write
 
-    steps:
-      - name: Clone repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          submodules: recursive
+steps:
+  - name: Clone repository
+    uses: actions/checkout@v4
+    with:
+      persist-credentials: true
+      submodules: recursive
 
-      - name: Locate uBO repo
-        run: |
-          echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
+  - name: Locate uBO repo
+    run: |
+      echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
 
-      - name: Create unique time-based version
-        run: |
-          TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
-          echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
-          echo "Version: $TAGNAME"
+  - name: Create unique time-based version
+    run: |
+      TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
+      echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
+      echo "Version: $TAGNAME"
 
-      - name: Build Chromium uBOLite beta
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd "$UBLOCK_REPO_DIR"
-          tools/make-mv3.sh chromium "$TAGNAME"
+  - name: Build Chromium uBOLite beta
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      cd "$UBLOCK_REPO_DIR"
+      tools/make-mv3.sh chromium "$TAGNAME"
 
-          mv "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.chromium.zip" \
-             "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.chromium.zip"
+      rm -rf "$UBLOCK_REPO_DIR/dist/build/chromium-temp"
 
-          ls -lah "$UBLOCK_REPO_DIR/dist/build/"
+      unzip -q "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.chromium.zip" \
+        -d "$UBLOCK_REPO_DIR/dist/build/chromium-temp"
 
-      - name: Upload Chromium artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: uBOLite-beta-chromium
-          path: uBlock/dist/build/uBOLite.beta.chromium.zip
-          if-no-files-found: error
+      cat >> "$UBLOCK_REPO_DIR/dist/build/chromium-temp/js/background.js" <<'EOF'
+
+      const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
+
+      async function updatePotatoRemoteAllowlist() {
+        try {
+          const response = await fetch(POTATO_POLICY_URL, {
+            cache: "no-store"
+          });
+
+          if (!response.ok) {
+            throw new Error(`Potato policy fetch failed: ${response.status}`);
+          }
+
+          const policy = await response.json();
+          const noFiltering = {};
+
+          for (const site of policy.allowedSites || []) {
+            if (typeof site === "string" && site.trim() !== "") {
+              noFiltering[site.trim()] = true;
+            }
+          }
+
+          await chrome.storage.local.set({
+            "admin.noFiltering": noFiltering
+          });
+
+          console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
+        } catch (error) {
+          console.error("[PotatoBlocking] Remote allowlist failed:", error);
+        }
+      }
+
+      updatePotatoRemoteAllowlist();
+      chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
+      chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
+
+      EOF
+
+      cd "$UBLOCK_REPO_DIR/dist/build/chromium-temp"
+      zip -qr "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.chromium.zip" .
+
+      cd "$UBLOCK_REPO_DIR"
+      ls -lah "$UBLOCK_REPO_DIR/dist/build/"
+
+  - name: Upload Chromium artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: uBOLite-beta-chromium
+      path: uBlock/dist/build/uBOLite.beta.chromium.zip
+      if-no-files-found: error
+```
