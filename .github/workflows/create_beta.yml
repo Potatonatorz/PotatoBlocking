@@ -37,8 +37,6 @@ steps:
       rm -rf chromium-temp
       unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-      perl -0pi -e 's/\nconst POTATO_POLICY_URL = "https:\/\/potatonatorz\.github\.io\/PotatoBlock\/policy\.json";.*\z/\n/s' chromium-temp/js/background.js
-
       {
         echo ''
         echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
@@ -58,25 +56,22 @@ steps:
         echo '        priority: 1000000,'
         echo '        action: { type: "allowAllRequests" },'
         echo '        condition: {'
-        echo '          requestDomains: [hostname, "www." + hostname],'
-        echo '          resourceTypes: ["main_frame", "sub_frame"]'
+        echo '          initiatorDomains: [hostname, "www." + hostname]'
         echo '        }'
         echo '      });'
         echo '    }'
         echo ''
         echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
-        echo '    const oldPotatoRuleIds = oldRules'
-        echo '      .filter(rule => rule.id >= 900000 && rule.id < 901000)'
-        echo '      .map(rule => rule.id);'
+        echo '    const oldPotatoRuleIds = oldRules.filter(rule => rule.id >= 900000 && rule.id < 901000).map(rule => rule.id);'
         echo ''
         echo '    await chrome.declarativeNetRequest.updateDynamicRules({'
         echo '      removeRuleIds: oldPotatoRuleIds,'
         echo '      addRules: rules'
         echo '    });'
         echo ''
-        echo '    console.log("[PotatoBlocking] Remote allow rules applied:", rules);'
+        echo '    console.log("[PotatoBlocking] DNR RULES CREATED:", rules);'
         echo '  } catch (error) {'
-        echo '    console.error("[PotatoBlocking] Remote allow rules failed:", error);'
+        echo '    console.error("[PotatoBlocking] DNR RULES FAILED:", error);'
         echo '  }'
         echo '}'
         echo ''
@@ -85,8 +80,7 @@ steps:
         echo 'chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);'
       } >> chromium-temp/js/background.js
 
-      grep -R "Remote allow rules applied" chromium-temp/js/background.js
-      ! grep -R "Remote allowlist applied" chromium-temp/js/background.js
+      grep -R "DNR RULES CREATED" chromium-temp/js/background.js
 
       cd chromium-temp
       zip -qr "../uBOLite.beta.chromium.zip" .
@@ -97,4 +91,3 @@ steps:
       name: uBOLite-beta-chromium
       path: uBlock/dist/build/uBOLite.beta.chromium.zip
       if-no-files-found: error
-```
