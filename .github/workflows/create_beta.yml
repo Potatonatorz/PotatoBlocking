@@ -87,3 +87,10 @@ jobs:
             ${{ env.UBLOCK_REPO_DIR }}/dist/build/uBOLite.beta.edge.zip \
             ${{ env.UBLOCK_REPO_DIR }}/dist/build/uBOLite.beta.firefox.xpi \
             ${{ env.UBLOCK_REPO_DIR }}/dist/build/uBOLite.beta.safari.zip
+
+
+      - name: Upload Chromium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uBOLite-chromium
+          path: uBlock/dist/build/uBOLite_*.chromium.zip
