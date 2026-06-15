@@ -786,6 +786,9 @@ browser.commands.onCommand.addListener((...args) => {
 
 
 
+
+
+
 const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
 async function updatePotatoRemoteAllowlist() {
@@ -825,17 +828,8 @@ console.error("[PotatoBlocking] Remote allowlist failed:", error);
 }
 }
 
-updatePotatoRemoteAllowlist();
+isFullyInitialized.then(updatePotatoRemoteAllowlist);
 
 chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
 chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
 
-chrome.alarms.create("potatoRemoteAllowlist", {
-periodInMinutes: 5
-});
-
-chrome.alarms.onAlarm.addListener(alarm => {
-if (alarm.name === "potatoRemoteAllowlist") {
-updatePotatoRemoteAllowlist();
-}
-});
