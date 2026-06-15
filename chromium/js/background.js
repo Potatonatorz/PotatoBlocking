@@ -791,40 +791,32 @@ browser.commands.onCommand.addListener((...args) => {
 const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
 async function updatePotatoRemoteAllowlist() {
-try {
-const response = await fetch(POTATO_POLICY_URL, {
-cache: "no-store"
-});
+  try {
+    const response = await fetch(POTATO_POLICY_URL, {
+      cache: "no-store"
+    });
 
-```
-if (!response.ok) {
-  throw new Error(`Potato policy fetch failed: ${response.status}`);
-}
+    if (!response.ok) {
+      throw new Error(`Potato policy fetch failed: ${response.status}`);
+    }
 
-const policy = await response.json();
+    const policy = await response.json();
+    const noFiltering = {};
 
-const allowedSites = Array.isArray(policy.allowedSites)
-  ? policy.allowedSites
-  : [];
+    for (const site of policy.allowedSites || []) {
+      if (typeof site === "string" && site.trim() !== "") {
+        noFiltering[site.trim()] = true;
+      }
+    }
 
-const noFiltering = {};
+    await chrome.storage.local.set({
+      "admin.noFiltering": noFiltering
+    });
 
-for (const site of allowedSites) {
-  if (typeof site === "string" && site.trim() !== "") {
-    noFiltering[site.trim()] = true;
+    console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
+  } catch (error) {
+    console.error("[PotatoBlocking] Remote allowlist failed:", error);
   }
-}
-
-await chrome.storage.local.set({
-  "admin.noFiltering": noFiltering
-});
-
-console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
-```
-
-} catch (error) {
-console.error("[PotatoBlocking] Remote allowlist failed:", error);
-}
 }
 
 isFullyInitialized.then(updatePotatoRemoteAllowlist);
