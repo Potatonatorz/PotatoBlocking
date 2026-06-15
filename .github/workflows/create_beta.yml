@@ -1,82 +1,84 @@
 name: uBO Lite beta
 
-on:
-workflow_dispatch:
+on: workflow_dispatch
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-name: Build packages
-runs-on: ubuntu-latest
+  build:
+    name: Build packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          submodules: recursive
 
-```
-permissions:
-  contents: write
+      - name: Locate uBO repo
+        run: echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
 
-steps:
-  - name: Clone repository
-    uses: actions/checkout@v4
-    with:
-      persist-credentials: true
-      submodules: recursive
+      - name: Create unique time-based version
+        run: |
+          TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
+          echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
 
-  - name: Locate uBO repo
-    run: |
-      echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
+      - name: Build Chromium uBOLite beta
+        run: |
+          cd "$UBLOCK_REPO_DIR"
+          tools/make-mv3.sh chromium "$TAGNAME"
 
-  - name: Create unique time-based version
-    run: |
-      TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
-      echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
+          cd "$UBLOCK_REPO_DIR/dist/build"
+          rm -rf chromium-temp
+          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-  - name: Build Chromium uBOLite beta
-    run: |
-      cd "$UBLOCK_REPO_DIR"
-      tools/make-mv3.sh chromium "$TAGNAME"
+          python3 - <<'PY'
+from pathlib import Path
 
-      cd "$UBLOCK_REPO_DIR/dist/build"
-      rm -rf chromium-temp
-      unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
+path = Path("chromium-temp/js/background.js")
 
-      cat >> chromium-temp/js/background.js <<'POTATOEOF'
+potato_code = r'''
 
-      const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
+const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
-      async function updatePotatoRemoteAllowlist() {
-        try {
-          const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });
-          const policy = await response.json();
-          const noFiltering = {};
+async function updatePotatoRemoteAllowlist() {
+  try {
+    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });
+    const policy = await response.json();
+    const noFiltering = {};
 
-          for (const site of policy.allowedSites || []) {
-            if (typeof site === "string" && site.trim() !== "") {
-              noFiltering[site.trim()] = true;
-            }
-          }
-
-          await chrome.storage.local.set({ "admin.noFiltering": noFiltering });
-          console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
-        } catch (error) {
-          console.error("[PotatoBlocking] Remote allowlist failed:", error);
-        }
+    for (const site of policy.allowedSites || []) {
+      if (typeof site === "string" && site.trim() !== "") {
+        noFiltering[site.trim()] = true;
       }
+    }
 
-      updatePotatoRemoteAllowlist();
-      chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
-      chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
-      POTATOEOF
+    await chrome.storage.local.set({ "admin.noFiltering": noFiltering });
+    console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
+  } catch (error) {
+    console.error("[PotatoBlocking] Remote allowlist failed:", error);
+  }
+}
 
-      grep -R "POTATO_POLICY_URL" chromium-temp/js/background.js
+updatePotatoRemoteAllowlist();
+chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
+chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
+'''
 
-      cd chromium-temp
-      zip -qr "../uBOLite.beta.chromium.zip" .
+path.write_text(path.read_text() + potato_code)
+PY
 
-  - name: Upload Chromium artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: uBOLite-beta-chromium
-      path: uBlock/dist/build/uBOLite.beta.chromium.zip
-      if-no-files-found: error
-```
+          grep -R "POTATO_POLICY_URL" chromium-temp/js/background.js
+
+          cd chromium-temp
+          zip -qr "../uBOLite.beta.chromium.zip" .
+
+      - name: Upload Chromium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uBOLite-beta-chromium
+          path: uBlock/dist/build/uBOLite.beta.chromium.zip
+          if-no-files-found: error
