@@ -1,103 +1,51 @@
 name: uBO Lite beta
 
 on:
-workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-name: Build packages
-runs-on: ubuntu-latest
+  build:
+    name: Build packages
+    runs-on: ubuntu-latest
 
-```
-permissions:
-  contents: write
+    permissions:
+      contents: write
 
-steps:
-  - name: Clone repository
-    uses: actions/checkout@v4
-    with:
-      persist-credentials: true
-      submodules: recursive
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          submodules: recursive
 
-  - name: Locate uBO repo
-    run: |
-      echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
+      - name: Locate uBO repo
+        run: |
+          echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
 
-  - name: Create unique time-based version
-    run: |
-      TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
-      echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
-      echo "Version: $TAGNAME"
+      - name: Create unique time-based version
+        run: |
+          TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
+          echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
+          echo "Version: $TAGNAME"
 
-  - name: Build Chromium uBOLite beta
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      cd "$UBLOCK_REPO_DIR"
-      tools/make-mv3.sh chromium "$TAGNAME"
+      - name: Build Chromium uBOLite beta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd "$UBLOCK_REPO_DIR"
+          tools/make-mv3.sh chromium "$TAGNAME"
 
-      mv "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.chromium.zip" \
-         "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.chromium.zip"
+          mv "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.chromium.zip" \
+             "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.chromium.zip"
 
-  - name: Build Edge uBOLite beta
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      cd "$UBLOCK_REPO_DIR"
-      tools/make-mv3.sh edge "$TAGNAME"
+          ls -lah "$UBLOCK_REPO_DIR/dist/build/"
 
-      mv "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.edge.zip" \
-         "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.edge.zip"
-
-  - name: Build Firefox uBOLite beta
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      cd "$UBLOCK_REPO_DIR"
-      tools/make-mv3.sh firefox "$TAGNAME"
-
-      mv "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.firefox.xpi" \
-         "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.firefox.xpi"
-
-  - name: Build Safari uBOLite beta
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      cd "$UBLOCK_REPO_DIR"
-      tools/make-mv3.sh safari "$TAGNAME"
-
-      mv "$UBLOCK_REPO_DIR/dist/build/uBOLite_${TAGNAME}.safari.zip" \
-         "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.safari.zip"
-
-  - name: List build output
-    run: |
-      ls -lah "$UBLOCK_REPO_DIR/dist/build/"
-
-  - name: Upload Chromium artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: uBOLite-beta-chromium
-      path: uBlock/dist/build/uBOLite.beta.chromium.zip
-      if-no-files-found: error
-
-  - name: Create GitHub beta release
-    id: create_beta_release
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    run: |
-      sed -e "s/%tag%/${TAGNAME}-beta/g" .github/workflows/BETA_BODY.md > beta_body.txt
-
-      gh release create "${TAGNAME}-beta" \
-        --title "${TAGNAME}-beta" \
-        --prerelease \
-        --notes-file beta_body.txt
-
-      gh release upload "${TAGNAME}-beta" \
-        "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.chromium.zip" \
-        "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.edge.zip" \
-        "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.firefox.xpi" \
-        "$UBLOCK_REPO_DIR/dist/build/uBOLite.beta.safari.zip"
-```
+      - name: Upload Chromium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uBOLite-beta-chromium
+          path: uBlock/dist/build/uBOLite.beta.chromium.zip
+          if-no-files-found: error
