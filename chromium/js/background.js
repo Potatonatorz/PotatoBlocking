@@ -788,7 +788,6 @@ browser.commands.onCommand.addListener((...args) => {
 
 
 
-
 const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
 async function updatePotatoRemoteAllowlist() {
