@@ -1,26 +1,54 @@
-```yaml
-      - name: Build Chromium uBOLite beta
-        run: |
-          cd "$UBLOCK_REPO_DIR"
-          tools/make-mv3.sh chromium "$TAGNAME"
+name: uBO Lite beta
 
-          cd "$UBLOCK_REPO_DIR/dist/build"
-          rm -rf chromium-temp
-          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
+on:
+workflow_dispatch:
 
-          cat >> chromium-temp/js/background.js <<'POTATO_EOF'
+permissions:
+contents: read
 
-          console.log('[PotatoBlocking] TEST');
+jobs:
+build:
+name: Build packages
+runs-on: ubuntu-latest
 
-          POTATO_EOF
+```
+steps:
+  - name: Clone repository
+    uses: actions/checkout@v4
+    with:
+      persist-credentials: true
+      submodules: recursive
 
-          cd chromium-temp
-          zip -qr "../uBOLite.beta.chromium.zip" .
+  - name: Locate uBO repo
+    run: echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
 
-      - name: Upload Chromium artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: uBOLite-beta-chromium
-          path: uBlock/dist/build/uBOLite.beta.chromium.zip
-          if-no-files-found: error
+  - name: Create unique time-based version
+    run: |
+      TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
+      echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
+
+  - name: Build Chromium uBOLite beta
+    run: |
+      cd "$UBLOCK_REPO_DIR"
+      tools/make-mv3.sh chromium "$TAGNAME"
+
+      cd "$UBLOCK_REPO_DIR/dist/build"
+      rm -rf chromium-temp
+      unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
+
+      cat >> chromium-temp/js/background.js <<'POTATO_EOF'
+
+      console.log('[PotatoBlocking] TEST');
+
+      POTATO_EOF
+
+      cd chromium-temp
+      zip -qr "../uBOLite.beta.chromium.zip" .
+
+  - name: Upload Chromium artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: uBOLite-beta-chromium
+      path: uBlock/dist/build/uBOLite.beta.chromium.zip
+      if-no-files-found: error
 ```
