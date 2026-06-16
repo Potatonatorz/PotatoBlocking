@@ -1,4 +1,3 @@
-```yaml
 name: uBO Lite beta
 
 on:
@@ -38,4 +37,3 @@ jobs:
           name: uBOLite-beta-chromium
           path: uBlock/dist/build/uBOLite_*.chromium.zip
           if-no-files-found: error
-```
