@@ -59,9 +59,9 @@ jobs:
                 priority: 1000000,
                 action: { type: "allowAllRequests" },
                 condition: {
-                  initiatorDomains: [hostname, "www." + hostname],
-                  resourceTypes: ["main_frame"]
-                }
+                  requestDomains: [hostname, "www." + hostname],
+                  resourceTypes: ["main_frame", "sub_frame"]
+                  }
               }));
 
               const oldRules = await chrome.declarativeNetRequest.getDynamicRules();
