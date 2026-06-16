@@ -784,43 +784,64 @@ browser.commands.onCommand.addListener((...args) => {
 
 
 
-
-
-
-
 const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
+const POTATO_MANAGED_KEY = "potatoManagedDisabledSites";
+const POTATO_MODE_NONE = 0;
 
-async function updatePotatoRemoteAllowlist() {
-  try {
-    const response = await fetch(POTATO_POLICY_URL, {
-      cache: "no-store"
-    });
-
-    if (!response.ok) {
-      throw new Error(`Potato policy fetch failed: ${response.status}`);
-    }
-
-    const policy = await response.json();
-    const noFiltering = {};
-
-    for (const site of policy.allowedSites || []) {
-      if (typeof site === "string" && site.trim() !== "") {
-        noFiltering[site.trim()] = true;
-      }
-    }
-
-    await chrome.storage.local.set({
-      "admin.noFiltering": noFiltering
-    });
-
-    console.log("[PotatoBlocking] Remote allowlist applied:", noFiltering);
-  } catch (error) {
-    console.error("[PotatoBlocking] Remote allowlist failed:", error);
-  }
+function normalizePotatoHostname(site) {
+    return site
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/.*$/, "")
+        .replace(/^www\./, "");
 }
 
-isFullyInitialized.then(updatePotatoRemoteAllowlist);
+async function updatePotatoRemoteAllowlist() {
+    try {
+        await isFullyInitialized;
 
-chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
-chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
+        const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });
+        const policy = await response.json();
+        const allowedSites = Array.isArray(policy.allowedSites)
+            ? policy.allowedSites
+            : [];
 
+        const baseDomains = [...new Set(
+            allowedSites
+                .filter(site => typeof site === "string" && site.trim() !== "")
+                .map(normalizePotatoHostname)
+                .filter(Boolean)
+        )];
+
+        const managedHostnames = [...new Set(
+            baseDomains.flatMap(hostname => [
+                hostname,
+                "www." + hostname
+            ])
+        )];
+
+        const previousHostnames = await localRead(POTATO_MANAGED_KEY) || [];
+        const defaultMode = await getDefaultFilteringMode();
+
+        for ( const hostname of previousHostnames ) {
+            if ( managedHostnames.includes(hostname) ) { continue; }
+            await setFilteringMode(hostname, defaultMode);
+        }
+
+        for ( const hostname of managedHostnames ) {
+            await setFilteringMode(hostname, POTATO_MODE_NONE);
+        }
+
+        await localWrite(POTATO_MANAGED_KEY, managedHostnames);
+        await registerDeclarativeAssets();
+
+        console.log("[PotatoBlocking] POLICY MODES APPLIED:", managedHostnames);
+    } catch (error) {
+        console.error("[PotatoBlocking] POLICY MODES FAILED:", error);
+    }
+}
+
+updatePotatoRemoteAllowlist();
+runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
+runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
