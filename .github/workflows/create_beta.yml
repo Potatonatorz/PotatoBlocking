@@ -1,4 +1,3 @@
-```yaml
 name: uBO Lite beta
 
 on: workflow_dispatch
@@ -35,45 +34,56 @@ jobs:
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-          {
-            echo ''
-            echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
-            echo 'async function updatePotatoRemoteAllowlist() {'
-            echo '  try {'
-            echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
-            echo '    const policy = await response.json();'
-            echo '    const allowedSites = Array.isArray(policy.allowedSites) ? policy.allowedSites : [];'
-            echo '    const domains = [...new Set(allowedSites'
-            echo '      .filter(site => typeof site === "string" && site.trim() !== "")'
-            echo '      .map(site => site.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""))'
-            echo '      .filter(Boolean)'
-            echo '    )];'
-            echo '    const rules = domains.slice(0, 1000).map((hostname, index) => ({'
-            echo '      id: 910000 + index,'
-            echo '      priority: 1000000,'
-            echo '      action: { type: "allowAllRequests" },'
-            echo '      condition: {'
-            echo '        initiatorDomains: [hostname, "www." + hostname],'
-            echo '        resourceTypes: ["main_frame"]'
-            echo '      }'
-            echo '    }));'
-            echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
-            echo '    const oldPotatoRuleIds = oldRules'
-            echo '      .filter(rule => rule.id >= 900000 && rule.id < 911000)'
-            echo '      .map(rule => rule.id);'
-            echo '    await chrome.declarativeNetRequest.updateDynamicRules({'
-            echo '      removeRuleIds: oldPotatoRuleIds,'
-            echo '      addRules: rules'
-            echo '    });'
-            echo '    console.log("[PotatoBlocking] DNR RULES CREATED:", rules);'
-            echo '  } catch (error) {'
-            echo '    console.error("[PotatoBlocking] DNR RULES FAILED:", error);'
-            echo '  }'
-            echo '}'
-            echo 'updatePotatoRemoteAllowlist();'
-            echo 'chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);'
-            echo 'chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);'
-          } >> chromium-temp/js/background.js
+          cat >> chromium-temp/js/background.js <<'EOF'
+
+          const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
+
+          async function updatePotatoRemoteAllowlist() {
+            try {
+              const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });
+              const policy = await response.json();
+              const allowedSites = Array.isArray(policy.allowedSites) ? policy.allowedSites : [];
+
+              const domains = [...new Set(
+                allowedSites
+                  .filter(site => typeof site === "string" && site.trim() !== "")
+                  .map(site => site.trim().toLowerCase())
+                  .map(site => site.replace(/^https?:\/\//, ""))
+                  .map(site => site.replace(/\/.*$/, ""))
+                  .map(site => site.replace(/^www\./, ""))
+                  .filter(Boolean)
+              )];
+
+              const rules = domains.slice(0, 1000).map((hostname, index) => ({
+                id: 910000 + index,
+                priority: 1000000,
+                action: { type: "allowAllRequests" },
+                condition: {
+                  initiatorDomains: [hostname, "www." + hostname],
+                  resourceTypes: ["main_frame"]
+                }
+              }));
+
+              const oldRules = await chrome.declarativeNetRequest.getDynamicRules();
+              const oldPotatoRuleIds = oldRules
+                .filter(rule => rule.id >= 900000 && rule.id < 911000)
+                .map(rule => rule.id);
+
+              await chrome.declarativeNetRequest.updateDynamicRules({
+                removeRuleIds: oldPotatoRuleIds,
+                addRules: rules
+              });
+
+              console.log("[PotatoBlocking] DNR RULES CREATED:", rules);
+            } catch (error) {
+              console.error("[PotatoBlocking] DNR RULES FAILED:", error);
+            }
+          }
+
+          updatePotatoRemoteAllowlist();
+          chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
+          chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
+          EOF
 
           grep -R "DNR RULES CREATED" chromium-temp/js/background.js
 
@@ -86,4 +96,3 @@ jobs:
           name: uBOLite-beta-chromium
           path: uBlock/dist/build/uBOLite.beta.chromium.zip
           if-no-files-found: error
-```
