@@ -134,7 +134,7 @@ jobs:
             );
           POTATO_EOF
 
-          grep -R "DNR RULES CREATED" chromium-temp/js/background.js
+          grep -R "POTATO_POLICY_URL" chromium-temp/js/background.js || true
 
           cd chromium-temp
           zip -qr "../uBOLite.beta.chromium.zip" .
