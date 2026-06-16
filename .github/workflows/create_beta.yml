@@ -35,6 +35,35 @@ jobs:
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
+          cat >> chromium-temp/css/popup.css <<'POTATO_CSS'
+
+          /* Hide filtering mode slider */
+          .filteringModeCard,
+          .filteringModeButton,
+          .filteringModeSlider,
+          #filteringModeSlider,
+          .filteringMode {
+            display: none !important;
+          }
+
+          /* Hide local tools */
+          .toolMenu.localTools {
+            display: none !important;
+          }
+
+          /* Hide toolbar buttons */
+          .toolRibbon.globalTools {
+            display: none !important;
+          }
+
+          /* Hide settings/dashboard */
+          #gotoDashboard,
+          #gotoMatchedRules {
+            display: none !important;
+          }
+
+          POTATO_CSS
+
           cat >> chromium-temp/js/background.js <<'POTATO_EOF'
 
           const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
