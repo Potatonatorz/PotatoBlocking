@@ -37,7 +37,30 @@ jobs:
 
           cat >> chromium-temp/js/background.js <<'POTATO_EOF'
 
-          console.log('[PotatoBlocking] TEST');
+          const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
+
+          async function updatePotatoRemoteAllowlist() {
+            try {
+              const response = await fetch(POTATO_POLICY_URL, {
+                cache: "no-store"
+              });
+          
+              const policy = await response.json();
+          
+              console.log(
+                "[PotatoBlocking] POLICY LOADED:",
+                policy
+              );
+          
+            } catch (error) {
+              console.error(
+                "[PotatoBlocking] POLICY FAILED:",
+                error
+              );
+            }
+          }
+          
+          updatePotatoRemoteAllowlist();
 
           POTATO_EOF
 
