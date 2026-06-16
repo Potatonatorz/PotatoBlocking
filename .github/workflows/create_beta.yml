@@ -1,6 +1,8 @@
+```yaml
 name: uBO Lite beta
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,7 +36,7 @@ jobs:
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-          cat >> chromium-temp/js/background.js <<'EOF'
+          cat >> chromium-temp/js/background.js <<'POTATO_EOF'
 
           const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
@@ -54,14 +56,33 @@ jobs:
                   .filter(Boolean)
               )];
 
+              const resourceTypes = [
+                "main_frame",
+                "sub_frame",
+                "stylesheet",
+                "script",
+                "image",
+                "font",
+                "object",
+                "xmlhttprequest",
+                "ping",
+                "csp_report",
+                "media",
+                "websocket",
+                "webtransport",
+                "webbundle",
+                "other"
+              ];
+
               const rules = domains.slice(0, 1000).map((hostname, index) => ({
                 id: 910000 + index,
                 priority: 1000000,
                 action: { type: "allowAllRequests" },
                 condition: {
                   requestDomains: [hostname, "www." + hostname],
-                  resourceTypes: ["main_frame", "sub_frame"]
-                  }
+                  initiatorDomains: [hostname, "www." + hostname],
+                  resourceTypes
+                }
               }));
 
               const oldRules = await chrome.declarativeNetRequest.getDynamicRules();
@@ -83,7 +104,7 @@ jobs:
           updatePotatoRemoteAllowlist();
           chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);
           chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);
-          EOF
+          POTATO_EOF
 
           grep -R "DNR RULES CREATED" chromium-temp/js/background.js
 
@@ -96,3 +117,4 @@ jobs:
           name: uBOLite-beta-chromium
           path: uBlock/dist/build/uBOLite.beta.chromium.zip
           if-no-files-found: error
+```
