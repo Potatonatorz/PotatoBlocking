@@ -1,3 +1,4 @@
+```yaml
 name: uBO Lite beta
 
 on:
@@ -31,117 +32,10 @@ jobs:
           cd "$UBLOCK_REPO_DIR"
           tools/make-mv3.sh chromium "$TAGNAME"
 
-          cd "$UBLOCK_REPO_DIR/dist/build"
-          rm -rf chromium-temp
-          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
-
-          cat >> chromium-temp/js/background.js <<'POTATO_EOF'
-
-          const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
-
-            const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
-            const POTATO_MANAGED_KEY = 'potatoManagedDisabledSites';
-            
-            function normalizePotatoHostname(site) {
-              return site
-                .trim()
-                .toLowerCase()
-                .replace(/^https?:\/\//, '')
-                .replace(/\/.*$/, '')
-                .replace(/^www\./, '');
-            }
-            
-            async function updatePotatoRemoteAllowlist() {
-              try {
-                await isFullyInitialized;
-            
-                const response = await fetch(POTATO_POLICY_URL, {
-                  cache: 'no-store'
-                });
-            
-                const policy = await response.json();
-            
-                const allowedSites = Array.isArray(policy.allowedSites)
-                  ? policy.allowedSites
-                  : [];
-            
-                const baseDomains = [...new Set(
-                  allowedSites
-                    .filter(site => typeof site === 'string' && site.trim() !== '')
-                    .map(normalizePotatoHostname)
-                    .filter(Boolean)
-                )];
-            
-                const managedHostnames = [...new Set(
-                  baseDomains.flatMap(hostname => [
-                    hostname,
-                    `www.${hostname}`
-                  ])
-                )];
-            
-                const previousHostnames =
-                  await localRead(POTATO_MANAGED_KEY) || [];
-            
-                const defaultMode =
-                  await getDefaultFilteringMode();
-            
-                for (const hostname of previousHostnames) {
-                  if (managedHostnames.includes(hostname)) {
-                    continue;
-                  }
-            
-                  await setFilteringMode(
-                    hostname,
-                    defaultMode
-                  );
-                }
-            
-                for (const hostname of managedHostnames) {
-                  await setFilteringMode(
-                    hostname,
-                    0
-                  );
-                }
-            
-                await localWrite(
-                  POTATO_MANAGED_KEY,
-                  managedHostnames
-                );
-            
-                await registerDeclarativeAssets();
-            
-                console.log(
-                  '[PotatoBlocking] POLICY MODES APPLIED:',
-                  managedHostnames
-                );
-            
-              } catch (error) {
-                console.error(
-                  '[PotatoBlocking] POLICY MODES FAILED:',
-                  error
-                );
-              }
-            }
-            
-            updatePotatoRemoteAllowlist();
-            
-            runtime.onInstalled.addListener(
-              updatePotatoRemoteAllowlist
-            );
-            
-            runtime.onStartup.addListener(
-              updatePotatoRemoteAllowlist
-            );
-          POTATO_EOF
-
-          grep -R "POTATO_POLICY_URL" chromium-temp/js/background.js || true
-
-          cd chromium-temp
-          zip -qr "../uBOLite.beta.chromium.zip" .
-
       - name: Upload Chromium artifact
         uses: actions/upload-artifact@v4
         with:
           name: uBOLite-beta-chromium
-          path: uBlock/dist/build/uBOLite.beta.chromium.zip
+          path: uBlock/dist/build/uBOLite_*.chromium.zip
           if-no-files-found: error
+```
