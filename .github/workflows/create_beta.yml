@@ -40,50 +40,42 @@ jobs:
           const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
 
           async function updatePotatoRemoteAllowlist() {
-          try {
-            await isFullyInitialized;
-        
-            const response = await fetch(POTATO_POLICY_URL, {
-              cache: "no-store"
-            });
-        
-            const policy = await response.json();
-        
-            const allowedSites = Array.isArray(policy.allowedSites)
-              ? policy.allowedSites
-              : [];
-        
-            for (const site of allowedSites) {
-              const hostname = site
-                .toLowerCase()
-                .replace(/^https?:\/\//, "")
-                .replace(/\/.*$/, "")
-                .replace(/^www\./, "");
-        
-              console.log(
-                "[PotatoBlocking] DISABLING:",
-                hostname
-              );
-        
-              await setFilteringMode(hostname, 0);
-              await setFilteringMode(`www.${hostname}`, 0);
+            try {
+              await isFullyInitialized;
+
+              const response = await fetch(POTATO_POLICY_URL, {
+                cache: "no-store"
+              });
+
+              const policy = await response.json();
+
+              const allowedSites = Array.isArray(policy.allowedSites)
+                ? policy.allowedSites
+                : [];
+
+              for (const site of allowedSites) {
+                const hostname = site
+                  .toLowerCase()
+                  .replace(/^https?:\/\//, "")
+                  .replace(/\/.*$/, "")
+                  .replace(/^www\./, "");
+
+                console.log("[PotatoBlocking] DISABLING:", hostname);
+
+                await setFilteringMode(hostname, 0);
+                await setFilteringMode("www." + hostname, 0);
+              }
+
+              await registerDeclarativeAssets();
+
+              console.log("[PotatoBlocking] POLICY APPLIED");
+            } catch (error) {
+              console.error("[PotatoBlocking] POLICY FAILED:", error);
             }
-        
-            await registerDeclarativeAssets();
-        
-            console.log(
-              "[PotatoBlocking] POLICY APPLIED"
-            );
-        
-          } catch (error) {
-            console.error(
-              "[PotatoBlocking] POLICY FAILED:",
-              error
-            );
           }
-        }
-        
-        updatePotatoRemoteAllowlist();
+
+          updatePotatoRemoteAllowlist();
+
           POTATO_EOF
 
           cd chromium-temp
