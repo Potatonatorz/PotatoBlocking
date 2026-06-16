@@ -1,3 +1,4 @@
+```yaml
 name: uBO Lite beta
 
 on: workflow_dispatch
@@ -41,24 +42,24 @@ jobs:
             echo '  try {'
             echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
             echo '    const policy = await response.json();'
-            echo '    const rules = [];'
-            echo '    let ruleId = 910000;'
-            echo '    for (const site of policy.allowedSites || []) {'
-            echo '      if (typeof site !== "string" || site.trim() === "") { continue; }'
-            echo '      const hostname = site.trim().replace(/^www\./, "");'
-            echo '      rules.push({'
-            echo '        id: ruleId++,'
-            echo '        priority: 1000000,'
-            echo '        action: { type: "allowAllRequests" },'
-            echo '        condition: {'
-            echo '          initiatorDomains: [hostname, "www." + hostname],'
-            echo '          resourceTypes: ["main_frame", "sub_frame"]'
-            echo '        }'
-            echo '      });'
-            echo '    }'
+            echo '    const allowedSites = Array.isArray(policy.allowedSites) ? policy.allowedSites : [];'
+            echo '    const domains = [...new Set(allowedSites'
+            echo '      .filter(site => typeof site === "string" && site.trim() !== "")'
+            echo '      .map(site => site.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""))'
+            echo '      .filter(Boolean)'
+            echo '    )];'
+            echo '    const rules = domains.slice(0, 1000).map((hostname, index) => ({'
+            echo '      id: 910000 + index,'
+            echo '      priority: 1000000,'
+            echo '      action: { type: "allowAllRequests" },'
+            echo '      condition: {'
+            echo '        initiatorDomains: [hostname, "www." + hostname],'
+            echo '        resourceTypes: ["main_frame"]'
+            echo '      }'
+            echo '    }));'
             echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
             echo '    const oldPotatoRuleIds = oldRules'
-            echo '      .filter(rule => rule.id >= 910000 && rule.id < 911000)'
+            echo '      .filter(rule => rule.id >= 900000 && rule.id < 911000)'
             echo '      .map(rule => rule.id);'
             echo '    await chrome.declarativeNetRequest.updateDynamicRules({'
             echo '      removeRuleIds: oldPotatoRuleIds,'
@@ -85,3 +86,4 @@ jobs:
           name: uBOLite-beta-chromium
           path: uBlock/dist/build/uBOLite.beta.chromium.zip
           if-no-files-found: error
+```
