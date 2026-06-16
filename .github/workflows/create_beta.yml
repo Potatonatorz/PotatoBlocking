@@ -34,6 +34,11 @@ jobs:
           cd "$UBLOCK_REPO_DIR/dist/build"
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
+          
+          q '.name = "PotatoBlocking" | .short_name = "PotatoBlocking"' \
+          chromium-temp/manifest.json > manifest.tmp
+          
+          mv manifest.tmp chromium-temp/manifest.json
 
           cat >> chromium-temp/css/popup.css <<'POTATO_CSS'
 
