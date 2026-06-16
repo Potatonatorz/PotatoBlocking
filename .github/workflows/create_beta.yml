@@ -35,7 +35,7 @@ jobs:
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
           
-          q '.name = "PotatoBlocking" | .short_name = "PotatoBlocking"' \
+          jq '.name = "PotatoBlocking" | .short_name = "PotatoBlocking"' \
           chromium-temp/manifest.json > manifest.tmp
           
           mv manifest.tmp chromium-temp/manifest.json
