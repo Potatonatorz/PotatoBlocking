@@ -10,7 +10,6 @@ build:
 name: Build packages
 runs-on: ubuntu-latest
 
-```
 steps:
   - name: Clone repository
     uses: actions/checkout@v4
@@ -95,4 +94,3 @@ steps:
       name: uBOLite-beta-chromium
       path: uBlock/dist/build/uBOLite.beta.chromium.zip
       if-no-files-found: error
-```
