@@ -1,123 +1,98 @@
 name: uBO Lite beta
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 permissions:
-  contents: read
+contents: read
 
 jobs:
-  build:
-    name: Build packages
-    runs-on: ubuntu-latest
+build:
+name: Build packages
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Clone repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: true
-          submodules: recursive
+```
+steps:
+  - name: Clone repository
+    uses: actions/checkout@v4
+    with:
+      persist-credentials: true
+      submodules: recursive
 
-      - name: Locate uBO repo
-        run: echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
+  - name: Locate uBO repo
+    run: echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
 
-      - name: Create unique time-based version
-        run: |
-          TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
-          echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
+  - name: Create unique time-based version
+    run: |
+      TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
+      echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
 
-      - name: Build Chromium uBOLite beta
-        run: |
-          cd "$UBLOCK_REPO_DIR"
-          tools/make-mv3.sh chromium "$TAGNAME"
+  - name: Build Chromium uBOLite beta
+    run: |
+      cd "$UBLOCK_REPO_DIR"
+      tools/make-mv3.sh chromium "$TAGNAME"
 
-          cd "$UBLOCK_REPO_DIR/dist/build"
-          rm -rf chromium-temp
-          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
-          
-          jq '.name = "PotatoBlocking" | .short_name = "PotatoBlocking"' \
-          chromium-temp/manifest.json > manifest.tmp
-          
-          mv manifest.tmp chromium-temp/manifest.json
+      cd "$UBLOCK_REPO_DIR/dist/build"
+      rm -rf chromium-temp
+      unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-          cat >> chromium-temp/css/popup.css <<'POTATO_CSS'
+      {
+        echo ''
+        echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
+        echo 'const POTATO_RULE_ID = 800000;'
+        echo ''
+        echo 'async function updatePotatoRemoteAllowlist() {'
+        echo '  try {'
+        echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
+        echo '    const policy = await response.json();'
+        echo '    const domains = new Set();'
+        echo ''
+        echo '    for (const site of policy.allowedSites || []) {'
+        echo '      if (typeof site !== "string" || site.trim() === "") { continue; }'
+        echo '      const hostname = site.trim().replace(/^www\./, "");'
+        echo '      domains.add(hostname);'
+        echo '      domains.add("www." + hostname);'
+        echo '    }'
+        echo ''
+        echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
+        echo '    const oldPotatoRuleIds = oldRules'
+        echo '      .filter(rule => rule.id === POTATO_RULE_ID || rule.id >= 910000 && rule.id < 911000)'
+        echo '      .map(rule => rule.id);'
+        echo ''
+        echo '    const addRules = domains.size === 0 ? [] : [{'
+        echo '      id: POTATO_RULE_ID,'
+        echo '      priority: 2000000,'
+        echo '      action: { type: "allowAllRequests" },'
+        echo '      condition: {'
+        echo '        requestDomains: Array.from(domains),'
+        echo '        resourceTypes: ["main_frame", "sub_frame"]'
+        echo '      }'
+        echo '    }];'
+        echo ''
+        echo '    await chrome.declarativeNetRequest.updateDynamicRules({'
+        echo '      removeRuleIds: oldPotatoRuleIds,'
+        echo '      addRules'
+        echo '    });'
+        echo ''
+        echo '    console.log("[PotatoBlocking] Remote allow rule rebuilt:", addRules);'
+        echo '  } catch (error) {'
+        echo '    console.error("[PotatoBlocking] Remote allow rule failed:", error);'
+        echo '  }'
+        echo '}'
+        echo ''
+        echo 'updatePotatoRemoteAllowlist();'
+        echo 'chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);'
+        echo 'chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);'
+      } >> chromium-temp/js/background.js
 
-          /* Hide filtering mode slider */
-          .filteringModeCard,
-          .filteringModeButton,
-          .filteringModeSlider,
-          #filteringModeSlider,
-          .filteringMode {
-            display: none !important;
-          }
+      grep -R "Remote allow rule rebuilt" chromium-temp/js/background.js
 
-          /* Hide local tools */
-          .toolMenu.localTools {
-            display: none !important;
-          }
+      cd chromium-temp
+      zip -qr "../uBOLite.beta.chromium.zip" .
 
-          /* Hide toolbar buttons */
-          .toolRibbon.globalTools {
-            display: none !important;
-          }
-
-          /* Hide settings/dashboard */
-          #gotoDashboard,
-          #gotoMatchedRules {
-            display: none !important;
-          }
-
-          POTATO_CSS
-
-          cat >> chromium-temp/js/background.js <<'POTATO_EOF'
-
-          const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";
-
-          async function updatePotatoRemoteAllowlist() {
-            try {
-              await isFullyInitialized;
-
-              const response = await fetch(POTATO_POLICY_URL, {
-                cache: "no-store"
-              });
-
-              const policy = await response.json();
-
-              const allowedSites = Array.isArray(policy.allowedSites)
-                ? policy.allowedSites
-                : [];
-
-              for (const site of allowedSites) {
-                const hostname = site
-                  .toLowerCase()
-                  .replace(/^https?:\/\//, "")
-                  .replace(/\/.*$/, "")
-                  .replace(/^www\./, "");
-
-                console.log("[PotatoBlocking] DISABLING:", hostname);
-
-                await setFilteringMode(hostname, 0);
-                await setFilteringMode("www." + hostname, 0);
-              }
-
-              await registerDeclarativeAssets();
-
-              console.log("[PotatoBlocking] POLICY APPLIED");
-            } catch (error) {
-              console.error("[PotatoBlocking] POLICY FAILED:", error);
-            }
-          }
-
-          updatePotatoRemoteAllowlist();
-
-          POTATO_EOF
-
-          cd chromium-temp
-          zip -qr "../uBOLite.beta.chromium.zip" .
-
-      - name: Upload Chromium artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: uBOLite-beta-chromium
-          path: uBlock/dist/build/uBOLite.beta.chromium.zip
-          if-no-files-found: error
+  - name: Upload Chromium artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: uBOLite-beta-chromium
+      path: uBlock/dist/build/uBOLite.beta.chromium.zip
+      if-no-files-found: error
+```
