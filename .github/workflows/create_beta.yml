@@ -1,182 +1,161 @@
 name: uBO Lite beta
 
 on:
-workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-name: Build packages
-runs-on: ubuntu-latest
+  build:
+    name: Build packages
+    runs-on: ubuntu-latest
 
-steps:
-  - name: Clone repository
-    uses: actions/checkout@v4
-    with:
-      persist-credentials: true
-      submodules: recursive
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          submodules: recursive
 
-  - name: Locate uBO repo
-    run: echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
+      - name: Locate uBO repo
+        run: echo "UBLOCK_REPO_DIR=$GITHUB_WORKSPACE/uBlock" >> "$GITHUB_ENV"
 
-  - name: Create unique time-based version
-    run: |
-      TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
-      echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
+      - name: Create unique time-based version
+        run: |
+          TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
+          echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
 
-  - name: Use Node 20
-    uses: actions/setup-node@v4
-    with:
-      node-version: 20
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-  - name: Build Chromium uBOLite beta
-    run: |
-      cd "$UBLOCK_REPO_DIR"
-      tools/make-mv3.sh chromium "$TAGNAME"
+      - name: Build Chromium uBOLite beta
+        run: |
+          cd "$UBLOCK_REPO_DIR"
+          tools/make-mv3.sh chromium "$TAGNAME"
 
-      cd "$UBLOCK_REPO_DIR/dist/build"
-      rm -rf chromium-temp
-      unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
+          cd "$UBLOCK_REPO_DIR/dist/build"
+          rm -rf chromium-temp
+          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
-      perl -0pi -e 's/\nconst POTATO_POLICY_URL = "https:\/\/potatonatorz\.github\.io\/PotatoBlock\/policy\.json";.*//s' chromium-temp/js/background.js
+          perl -0pi -e 's/\nconst POTATO_POLICY_URL = "https:\/\/potatonatorz\.github\.io\/PotatoBlock\/policy\.json";.*//s' chromium-temp/js/background.js
 
-      {
-        echo ''
-        echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
-        echo 'const POTATO_RULE_ID = 2000000000;'
-        echo 'async function updatePotatoRemoteAllowlist() {'
-        echo '  try {'
-        echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
-        echo '    const policy = await response.json();'
-        echo '    const domains = new Set();'
-        echo '    for (const site of policy.allowedSites || []) {'
-        echo '      if (typeof site !== "string" || site.trim() === "") { continue; }'
-        echo '      const hostname = site.trim().replace(/^www\./, "");'
-        echo '      domains.add(hostname);'
-        echo '      domains.add("www." + hostname);'
-        echo '    }'
-        echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
-        echo '    const oldPotatoRuleIds = oldRules.filter(rule => rule.id === 800000 || rule.id === 2000000000 || (rule.id >= 910000 && rule.id < 911000)).map(rule => rule.id);'
-        echo '    if (oldPotatoRuleIds.length !== 0) {'
-        echo '      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: oldPotatoRuleIds });'
-        echo '    }'
-        echo '    for (const site of domains) {'
-        echo '      await setFilteringMode(site, 0);'
-        echo '    }'
-        echo '    await registerDeclarativeAssets();'
-        echo '    if (domains.size !== 0) {'
-        echo '      await chrome.declarativeNetRequest.updateDynamicRules({'
-        echo '        addRules: [{'
-        echo '          id: POTATO_RULE_ID,'
-        echo '          priority: 2000000,'
-        echo '          action: { type: "allowAllRequests" },'
-        echo '          condition: {'
-        echo '            requestDomains: Array.from(domains),'
-        echo '            resourceTypes: ["main_frame", "sub_frame"]'
-        echo '          }'
-        echo '        }]'
-        echo '      });'
-        echo '    }'
-        echo '    console.log("[PotatoBlocking] Remote allow rule rebuilt:", Array.from(domains));'
-        echo '  } catch (error) {'
-        echo '    console.error("[PotatoBlocking] Remote allow rule failed:", error);'
-        echo '  }'
-        echo '}'
-        echo 'updatePotatoRemoteAllowlist();'
-      } >> chromium-temp/js/background.js
+          {
+            echo ''
+            echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
+            echo 'const POTATO_RULE_ID = 2000000000;'
+            echo 'async function updatePotatoRemoteAllowlist() {'
+            echo '  try {'
+            echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
+            echo '    const policy = await response.json();'
+            echo '    const domains = new Set();'
+            echo '    for (const site of policy.allowedSites || []) {'
+            echo '      if (typeof site !== "string" || site.trim() === "") { continue; }'
+            echo '      const hostname = site.trim().replace(/^www\./, "");'
+            echo '      domains.add(hostname);'
+            echo '      domains.add("www." + hostname);'
+            echo '    }'
+            echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
+            echo '    const oldPotatoRuleIds = oldRules.filter(rule => rule.id === 800000 || rule.id === 2000000000 || (rule.id >= 910000 && rule.id < 911000)).map(rule => rule.id);'
+            echo '    if (oldPotatoRuleIds.length !== 0) {'
+            echo '      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: oldPotatoRuleIds });'
+            echo '    }'
+            echo '    for (const site of domains) {'
+            echo '      await setFilteringMode(site, 0);'
+            echo '    }'
+            echo '    await registerDeclarativeAssets();'
+            echo '    if (domains.size !== 0) {'
+            echo '      await chrome.declarativeNetRequest.updateDynamicRules({'
+            echo '        addRules: [{'
+            echo '          id: POTATO_RULE_ID,'
+            echo '          priority: 2000000,'
+            echo '          action: { type: "allowAllRequests" },'
+            echo '          condition: {'
+            echo '            requestDomains: Array.from(domains),'
+            echo '            resourceTypes: ["main_frame", "sub_frame"]'
+            echo '          }'
+            echo '        }]'
+            echo '      });'
+            echo '    }'
+            echo '    console.log("[PotatoBlocking] Remote allow rule rebuilt:", Array.from(domains));'
+            echo '  } catch (error) {'
+            echo '    console.error("[PotatoBlocking] Remote allow rule failed:", error);'
+            echo '  }'
+            echo '}'
+            echo 'updatePotatoRemoteAllowlist();'
+          } >> chromium-temp/js/background.js
 
-      cat > chromium-temp/js/potato-lockdown.js <<'EOF'
-      (() => {
-        const blockedTexts = [
-          "Remove an element",
-          "Create a custom filter",
-          "Report an issue",
-          "Settings",
-          "Default filtering mode",
-          "Behavior",
-          "Backup",
-          "Custom filters",
-          "Import / Export",
-          "Import",
-          "Export"
-        ];
+          cat > chromium-temp/js/potato-lockdown.js <<'EOF'
+          (() => {
+            const blockedTexts = [
+              "Remove an element",
+              "Create a custom filter",
+              "Report an issue",
+              "Settings",
+              "Default filtering mode",
+              "Behavior",
+              "Backup",
+              "Filter lists",
+              "Custom filters",
+              "About",
+              "Import / Export",
+              "Import",
+              "Export",
+              "..."
+            ];
 
-        function hideBlockedText() {
-          for (const el of document.querySelectorAll("a, button, div, span, section, h1, h2, h3, label, summary, details")) {
-            const text = (el.textContent || "").trim();
-            if (blockedTexts.some(t => text === t || text.includes(t))) {
-              const row = el.closest("li, section, details, div, label, p, a, button") || el;
-              row.style.display = "none";
-              row.style.pointerEvents = "none";
+            function hideBlockedText() {
+              for (const el of document.querySelectorAll("a, button, div, span, section, h1, h2, h3, label, summary, details")) {
+                const text = (el.textContent || "").trim();
+                if (blockedTexts.some(t => text === t || text.includes(t))) {
+                  const row = el.closest("li, section, details, div, label, p, a, button") || el;
+                  row.style.display = "none";
+                  row.style.pointerEvents = "none";
+                }
+              }
             }
-          }
-        }
 
-        function lockControls() {
-          for (const input of document.querySelectorAll("input, select, textarea, button")) {
-            const box = input.closest("label, div, section, details");
-            const text = box ? box.textContent || "" : "";
-            if (
-              text.includes("Basic") ||
-              text.includes("Optimal") ||
-              text.includes("Complete") ||
-              text.includes("Automatically reload") ||
-              text.includes("Show the number") ||
-              text.includes("Enable strict blocking") ||
-              text.includes("Enable pop-up blocking") ||
-              text.includes("Developer mode") ||
-              text.includes("Import") ||
-              text.includes("Export") ||
-              text.includes("Custom filters")
-            ) {
-              input.disabled = true;
-              input.style.pointerEvents = "none";
+            function lockControls() {
+              for (const input of document.querySelectorAll("input, select, textarea, button")) {
+                input.disabled = true;
+                input.style.pointerEvents = "none";
+              }
             }
-          }
-        }
 
-        function blockPages() {
-          const href = location.href;
-          if (
-            href.includes("custom-filters") ||
-            href.includes("dashboard.html#custom-filters") ||
-            href.includes("dashboard.html#settings")
-          ) {
-            document.documentElement.innerHTML = "";
-            location.replace("/dashboard.html#filter-lists");
-          }
-        }
+            function blockPages() {
+              if (location.href.includes("dashboard.html")) {
+                document.body.innerHTML =
+                  '<div style="padding:20px;font-family:sans-serif">Settings disabled by PotatoBlocking</div>';
+              }
+            }
 
-        function run() {
-          blockPages();
-          hideBlockedText();
-          lockControls();
-        }
+            function run() {
+              blockPages();
+              hideBlockedText();
+              lockControls();
+            }
 
-        run();
+            run();
 
-        new MutationObserver(run).observe(document.documentElement, {
-          childList: true,
-          subtree: true
-        });
-      })();
-      EOF
+            new MutationObserver(run).observe(document.documentElement, {
+              childList: true,
+              subtree: true
+            });
+          })();
+          EOF
 
-      for file in chromium-temp/*.html; do
-        sed -i 's#</body>#<script src="/js/potato-lockdown.js"></script></body>#' "$file"
-      done
+          for file in chromium-temp/*.html; do
+            sed -i 's#</body>#<script src="/js/potato-lockdown.js"></script></body>#' "$file"
+          done
 
-      grep -R "Remote allow rule rebuilt" chromium-temp/js/background.js
-      grep -R "potato-lockdown.js" chromium-temp/*.html
+          cd chromium-temp
+          zip -qr "../uBOLite.beta.chromium.zip" .
 
-      cd chromium-temp
-      zip -qr "../uBOLite.beta.chromium.zip" .
-
-  - name: Upload Chromium artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: uBOLite-beta-chromium
-      path: uBlock/dist/build/uBOLite.beta.chromium.zip
-      if-no-files-found: error
+      - name: Upload Chromium artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uBOLite-beta-chromium
+          path: uBlock/dist/build/uBOLite.beta.chromium.zip
+          if-no-files-found: error
