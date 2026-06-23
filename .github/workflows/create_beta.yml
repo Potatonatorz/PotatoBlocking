@@ -87,7 +87,93 @@ jobs:
             echo 'updatePotatoRemoteAllowlist();'
           } >> chromium-temp/js/background.js
 
+          cat > chromium-temp/js/potato-lockdown.js <<'EOF'
+          (() => {
+            const hideTexts = [
+              "Remove an element",
+              "Create a custom filter",
+              "Report an issue",
+              "Settings",
+              "Default filtering mode",
+              "Behavior",
+              "Backup"
+            ];
+
+            function hideByText() {
+              for (const el of document.querySelectorAll("a, button, div, span, section, h1, h2, h3, label")) {
+                const text = (el.textContent || "").trim();
+                if (hideTexts.some(t => text === t || text.includes(t))) {
+                  const row = el.closest("li, section, div, label, p") || el;
+                  row.style.display = "none";
+                }
+              }
+
+              for (const input of document.querySelectorAll("input, select, textarea, button")) {
+                const label = input.closest("label, div, section");
+                const text = label ? label.textContent || "" : "";
+                if (
+                  text.includes("Basic") ||
+                  text.includes("Optimal") ||
+                  text.includes("Complete") ||
+                  text.includes("Automatically reload") ||
+                  text.includes("Show the number") ||
+                  text.includes("Enable strict blocking") ||
+                  text.includes("Enable pop-up blocking") ||
+                  text.includes("Developer mode")
+                ) {
+                  input.disabled = true;
+                  input.style.pointerEvents = "none";
+                }
+              }
+            }
+
+            function hidePopupActions() {
+              for (const el of document.querySelectorAll("*")) {
+                const text = (el.textContent || "").trim();
+                if (
+                  text.includes("Remove an element") ||
+                  text.includes("Create a custom filter") ||
+                  text.includes("Report an issue")
+                ) {
+                  const row = el.closest("li, div, button, a") || el;
+                  row.style.display = "none";
+                }
+              }
+
+              for (const el of document.querySelectorAll("a, button")) {
+                const title = el.title || "";
+                const href = el.getAttribute("href") || "";
+                if (
+                  title.toLowerCase().includes("dashboard") ||
+                  title.toLowerCase().includes("settings") ||
+                  href.includes("dashboard") ||
+                  href.includes("settings")
+                ) {
+                  el.style.display = "none";
+                  el.style.pointerEvents = "none";
+                }
+              }
+            }
+
+            hideByText();
+            hidePopupActions();
+
+            new MutationObserver(() => {
+              hideByText();
+              hidePopupActions();
+            }).observe(document.documentElement, {
+              childList: true,
+              subtree: true
+            });
+          })();
+          EOF
+
+          for file in chromium-temp/*.html; do
+            sed -i 's#</body>#<script src="/js/potato-lockdown.js"></script></body>#' "$file"
+          done
+
           grep -R "Remote allow rule rebuilt" chromium-temp/js/background.js
+          grep -R "potato-lockdown.js" chromium-temp/*.html
 
           cd chromium-temp
           zip -qr "../uBOLite.beta.chromium.zip" .
