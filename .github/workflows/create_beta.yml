@@ -26,6 +26,11 @@ jobs:
           TAGNAME=$(date -u "+%Y").$(date -u "+%-m*100+%-d" | bc).$(date -u "+%H*100+%M" | bc)
           echo "TAGNAME=$TAGNAME" >> "$GITHUB_ENV"
 
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Build Chromium uBOLite beta
         run: |
           cd "$UBLOCK_REPO_DIR"
