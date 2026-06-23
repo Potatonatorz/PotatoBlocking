@@ -40,32 +40,78 @@ jobs:
           rm -rf chromium-temp
           unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
+          python3 - <<'PY'
+          import json
+
+          path = "chromium-temp/manifest.json"
+
+          with open(path, "r", encoding="utf-8") as f:
+              manifest = json.load(f)
+
+          permissions = set(manifest.get("permissions", []))
+          permissions.add("alarms")
+          permissions.add("storage")
+          manifest["permissions"] = sorted(permissions)
+
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+          PY
+
           perl -0pi -e 's/\nconst POTATO_POLICY_URL = "https:\/\/potatonatorz\.github\.io\/PotatoBlock\/policy\.json";.*//s' chromium-temp/js/background.js
 
           {
             echo ''
             echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
             echo 'const POTATO_RULE_ID = 2000000000;'
+            echo 'const POTATO_STORAGE_KEY = "potatoAllowedDomains";'
+            echo ''
+            echo 'function normalizePotatoHost(site) {'
+            echo '  return String(site || "")'
+            echo '    .trim()'
+            echo '    .toLowerCase()'
+            echo '    .replace(/^https?:\/\//, "")'
+            echo '    .replace(/\/.*$/, "")'
+            echo '    .replace(/^www\./, "");'
+            echo '}'
+            echo ''
             echo 'async function updatePotatoRemoteAllowlist() {'
             echo '  try {'
             echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
             echo '    const policy = await response.json();'
+            echo ''
             echo '    const domains = new Set();'
             echo '    for (const site of policy.allowedSites || []) {'
-            echo '      if (typeof site !== "string" || site.trim() === "") { continue; }'
-            echo '      const hostname = site.trim().replace(/^www\./, "");'
+            echo '      const hostname = normalizePotatoHost(site);'
+            echo '      if (!hostname) { continue; }'
             echo '      domains.add(hostname);'
             echo '      domains.add("www." + hostname);'
             echo '    }'
+            echo ''
+            echo '    const stored = await chrome.storage.local.get(POTATO_STORAGE_KEY);'
+            echo '    const previousDomains = new Set(stored[POTATO_STORAGE_KEY] || []);'
+            echo ''
+            echo '    for (const oldDomain of previousDomains) {'
+            echo '      if (!domains.has(oldDomain)) {'
+            echo '        await setFilteringMode(oldDomain, 3);'
+            echo '      }'
+            echo '    }'
+            echo ''
             echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
-            echo '    const oldPotatoRuleIds = oldRules.filter(rule => rule.id === 800000 || rule.id === 2000000000 || (rule.id >= 910000 && rule.id < 911000)).map(rule => rule.id);'
+            echo '    const oldPotatoRuleIds = oldRules'
+            echo '      .filter(rule => rule.id === POTATO_RULE_ID || rule.id === 800000 || (rule.id >= 910000 && rule.id < 911000))'
+            echo '      .map(rule => rule.id);'
+            echo ''
             echo '    if (oldPotatoRuleIds.length !== 0) {'
             echo '      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: oldPotatoRuleIds });'
             echo '    }'
+            echo ''
             echo '    for (const site of domains) {'
             echo '      await setFilteringMode(site, 0);'
             echo '    }'
+            echo ''
+            echo '    await chrome.storage.local.set({ [POTATO_STORAGE_KEY]: Array.from(domains) });'
             echo '    await registerDeclarativeAssets();'
+            echo ''
             echo '    if (domains.size !== 0) {'
             echo '      await chrome.declarativeNetRequest.updateDynamicRules({'
             echo '        addRules: [{'
@@ -79,12 +125,22 @@ jobs:
             echo '        }]'
             echo '      });'
             echo '    }'
-            echo '    console.log("[PotatoBlocking] Remote allow rule rebuilt:", Array.from(domains));'
+            echo ''
+            echo '    console.log("[PotatoBlocking] Remote allowlist synced:", Array.from(domains));'
             echo '  } catch (error) {'
-            echo '    console.error("[PotatoBlocking] Remote allow rule failed:", error);'
+            echo '    console.error("[PotatoBlocking] Remote allowlist failed:", error);'
             echo '  }'
             echo '}'
+            echo ''
             echo 'updatePotatoRemoteAllowlist();'
+            echo 'chrome.runtime.onStartup.addListener(updatePotatoRemoteAllowlist);'
+            echo 'chrome.runtime.onInstalled.addListener(updatePotatoRemoteAllowlist);'
+            echo 'chrome.alarms.create("potatoAllowlistSync", { periodInMinutes: 5 });'
+            echo 'chrome.alarms.onAlarm.addListener(alarm => {'
+            echo '  if (alarm.name === "potatoAllowlistSync") {'
+            echo '    updatePotatoRemoteAllowlist();'
+            echo '  }'
+            echo '});'
           } >> chromium-temp/js/background.js
 
           cat > chromium-temp/js/potato-lockdown.js <<'EOF'
