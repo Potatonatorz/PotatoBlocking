@@ -31,14 +31,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Build Chromium uBOLite beta
+      - name: Build Chromium PotatoBlocking beta
         run: |
           cd "$UBLOCK_REPO_DIR"
           tools/make-mv3.sh chromium "$TAGNAME"
 
           cd "$UBLOCK_REPO_DIR/dist/build"
           rm -rf chromium-temp
-          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
+          unzip -q "PotatoBlocking_${TAGNAME}.chromium.zip" -d chromium-temp
 
           python3 - <<'PY'
           import json
@@ -47,6 +47,10 @@ jobs:
 
           with open(path, "r", encoding="utf-8") as f:
               manifest = json.load(f)
+
+          manifest["name"] = "PotatoBlocking"
+          manifest["short_name"] = "PotatoBlocking"
+          manifest["description"] = "PotatoBlocking"
 
           permissions = set(manifest.get("permissions", []))
           permissions.add("alarms")
@@ -57,6 +61,25 @@ jobs:
               json.dump(manifest, f, indent=2)
           PY
 
+          python3 - <<'PY'
+          import json
+          import os
+
+          path = "chromium-temp/_locales/en/messages.json"
+
+          if os.path.exists(path):
+              with open(path, "r", encoding="utf-8") as f:
+                  messages = json.load(f)
+
+              if "extName" in messages:
+                  messages["extName"]["message"] = "PotatoBlocking"
+              if "extShortDesc" in messages:
+                  messages["extShortDesc"]["message"] = "PotatoBlocking"
+
+              with open(path, "w", encoding="utf-8") as f:
+                  json.dump(messages, f, indent=2, ensure_ascii=False)
+          PY
+
           perl -0pi -e 's/\nconst POTATO_POLICY_URL = "https:\/\/potatonatorz\.github\.io\/PotatoBlock\/policy\.json";.*//s' chromium-temp/js/background.js
 
           {
@@ -64,6 +87,7 @@ jobs:
             echo 'const POTATO_POLICY_URL = "https://potatonatorz.github.io/PotatoBlock/policy.json";'
             echo 'const POTATO_RULE_ID = 2000000000;'
             echo 'const POTATO_STORAGE_KEY = "potatoAllowedDomains";'
+            echo 'let potatoSyncRunning = false;'
             echo ''
             echo 'function normalizePotatoHost(site) {'
             echo '  return String(site || "")'
@@ -75,6 +99,9 @@ jobs:
             echo '}'
             echo ''
             echo 'async function updatePotatoRemoteAllowlist() {'
+            echo '  if (potatoSyncRunning) { return; }'
+            echo '  potatoSyncRunning = true;'
+            echo ''
             echo '  try {'
             echo '    const response = await fetch(POTATO_POLICY_URL, { cache: "no-store" });'
             echo '    const policy = await response.json();'
@@ -96,15 +123,6 @@ jobs:
             echo '      }'
             echo '    }'
             echo ''
-            echo '    const oldRules = await chrome.declarativeNetRequest.getDynamicRules();'
-            echo '    const oldPotatoRuleIds = oldRules'
-            echo '      .filter(rule => rule.id === POTATO_RULE_ID || rule.id === 800000 || (rule.id >= 910000 && rule.id < 911000))'
-            echo '      .map(rule => rule.id);'
-            echo ''
-            echo '    if (oldPotatoRuleIds.length !== 0) {'
-            echo '      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: oldPotatoRuleIds });'
-            echo '    }'
-            echo ''
             echo '    for (const site of domains) {'
             echo '      await setFilteringMode(site, 0);'
             echo '    }'
@@ -112,23 +130,31 @@ jobs:
             echo '    await chrome.storage.local.set({ [POTATO_STORAGE_KEY]: Array.from(domains) });'
             echo '    await registerDeclarativeAssets();'
             echo ''
-            echo '    if (domains.size !== 0) {'
-            echo '      await chrome.declarativeNetRequest.updateDynamicRules({'
-            echo '        addRules: [{'
-            echo '          id: POTATO_RULE_ID,'
-            echo '          priority: 2000000,'
-            echo '          action: { type: "allowAllRequests" },'
-            echo '          condition: {'
-            echo '            requestDomains: Array.from(domains),'
-            echo '            resourceTypes: ["main_frame", "sub_frame"]'
-            echo '          }'
-            echo '        }]'
-            echo '      });'
+            echo '    const ruleIdsToRemove = [POTATO_RULE_ID, 800000];'
+            echo '    for (let id = 910000; id < 911000; id++) {'
+            echo '      ruleIdsToRemove.push(id);'
             echo '    }'
+            echo ''
+            echo '    const addRules = domains.size === 0 ? [] : [{'
+            echo '      id: POTATO_RULE_ID,'
+            echo '      priority: 2000000,'
+            echo '      action: { type: "allowAllRequests" },'
+            echo '      condition: {'
+            echo '        requestDomains: Array.from(domains),'
+            echo '        resourceTypes: ["main_frame", "sub_frame"]'
+            echo '      }'
+            echo '    }];'
+            echo ''
+            echo '    await chrome.declarativeNetRequest.updateDynamicRules({'
+            echo '      removeRuleIds: ruleIdsToRemove,'
+            echo '      addRules'
+            echo '    });'
             echo ''
             echo '    console.log("[PotatoBlocking] Remote allowlist synced:", Array.from(domains));'
             echo '  } catch (error) {'
             echo '    console.error("[PotatoBlocking] Remote allowlist failed:", error);'
+            echo '  } finally {'
+            echo '    potatoSyncRunning = false;'
             echo '  }'
             echo '}'
             echo ''
@@ -271,11 +297,11 @@ jobs:
           done
 
           cd chromium-temp
-          zip -qr "../uBOLite.beta.chromium.zip" .
+          zip -qr "../PotatoBlocking.beta.chromium.zip" .
 
       - name: Upload Chromium artifact
         uses: actions/upload-artifact@v4
         with:
-          name: uBOLite-beta-chromium
-          path: uBlock/dist/build/uBOLite.beta.chromium.zip
+          name: PotatoBlocking-beta-chromium
+          path: uBlock/dist/build/PotatoBlocking.beta.chromium.zip
           if-no-files-found: error
