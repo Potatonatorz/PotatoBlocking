@@ -38,7 +38,7 @@ jobs:
 
           cd "$UBLOCK_REPO_DIR/dist/build"
           rm -rf chromium-temp
-          unzip -q "PotatoBlocking_${TAGNAME}.chromium.zip" -d chromium-temp
+          unzip -q "uBOLite_${TAGNAME}.chromium.zip" -d chromium-temp
 
           python3 - <<'PY'
           import json
