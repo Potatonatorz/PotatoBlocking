@@ -14,10 +14,10 @@
   },
   "commands": {
     "enter-zapper-mode": {
-      "description": "__MSG_zapperTipEnter__"
+      "description": "PotatoBlocking"
     },
     "enter-picker-mode": {
-      "description": "__MSG_pickerTipEnter__"
+      "description": "PotatoBlocking"
     }
   },
   "declarative_net_request": {
@@ -318,7 +318,7 @@
   },
   "manifest_version": 3,
   "minimum_chrome_version": "122.0",
-  "name": "__MSG_extName__",
+  "name": "PotatoBlocking",
   "options_page": "dashboard.html",
   "permissions": [
     "activeTab",
@@ -329,7 +329,7 @@
     "userScripts",
     "alarms"
   ],
-  "short_name": "uBO Lite",
+  "short_name": "PotatoBlocking",
   "storage": {
     "managed_schema": "managed_storage.json"
   },
