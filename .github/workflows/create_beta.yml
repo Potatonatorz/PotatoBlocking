@@ -51,7 +51,10 @@ jobs:
           manifest["name"] = "PotatoBlocking"
           manifest["short_name"] = "PotatoBlocking"
           manifest["description"] = "PotatoBlocking"
-
+          
+          manifest.pop("options_page", None)
+          manifest.pop("options_ui", None)
+          
           permissions = set(manifest.get("permissions", []))
           permissions.add("alarms")
           permissions.add("storage")
